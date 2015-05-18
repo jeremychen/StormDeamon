@@ -1,30 +1,16 @@
 #!/bin/sh
-# ckconfig: 2345 99 01
+# chkconfig: 2345 99 01
 # description: This script starts the storm cluster inlcuding nimbus, supervisor, ui and logviewer
-# Script to startup/stop storm node by scott
+# AUTHOR: Somebody somebody-mail-list-here
+# Script to startup/stop storm node 
 #
 
 #Notice: You need to set the STORMHOME before to run this script
 STORMHOME="/home/storm/storm-0.9.0.1"
 dataNow=`date +"%Y-%m-%d_%p_%I:%M:%S"`
-BASHFILE=sdaemon
-DAEMONPID=/tmp/sdaeon.pid
+BASHFILE=StormDaemon
+DAEMONPID=/tmp/StormDaemon.pid
 DAEMONMODE=0
-
-SLOGEMER1="java.lang.OutOfMemoryError: unable to create new native thread"
-SLOGEMER2="stormconf.ser' does not exist"
-
-###############################
-####### common functions ######
-show_info()
-{
-    echo -e "\033[1;32;40m$1\033[0m"
-}
-
-show_warn()
-{
-    echo -e "\033[1;31;40m$1\033[0m"
-}
 
 kill_process_by_pid()
 {
@@ -88,7 +74,6 @@ get_service()
 	fi
 }
 
-
 check_process_running()
 {
     service=$1
@@ -101,6 +86,16 @@ check_process_running()
         lv=`ps -ef | grep ${STORMHOME} | grep $service | grep -v grep | wc -l`
         echo $lv
     fi
+}
+
+show_info()
+{
+    echo -e "\033[1;32;40m$1\033[0m"
+}
+
+show_warn()
+{
+    echo -e "\033[1;31;40m$1\033[0m"
 }
 
 logfile_bak()
@@ -120,6 +115,8 @@ logfile_bak()
     cd ${STORMHOME}
 }
 
+######################
+####### service ######
 start_storm_service()
 {
     if [ ! -f ${STORMHOME}/bin/storm ]; then
@@ -136,7 +133,6 @@ start_storm_service()
 
     cd ${STORMHOME}
     s=$(check_process_running $service)
-    #echo "$s=\$(check_process_running $service)"
 
     if [ ${s} -ne 0 ]; then
         if [ $DAEMONMODE -ne 1 ]; then
@@ -148,7 +144,7 @@ start_storm_service()
     logfile_bak $service
     cd ${STORMHOME}
     #${STORMHOME}/bin/storm $service > ${STORMHOME}/logs/start$service.log&
-    ${STORMHOME}/bin/storm $(get_service $service) > ${STORMHOME}/logs/start$service.log&
+    ${STORMHOME}/bin/storm $(get_service $service) > ${STORMHOME}/logs/start.$service.log&
     chpid="$!"
     echo $chpid > ${STORMHOME}/.$service.pid
     sleep 1
@@ -193,8 +189,8 @@ stop_storm_service()
     show_info "$service process stop SUCCESS."
 }
 
-###############################
-####### process ###############
+######################
+####### process ######
 stop_storm_process()
 {
     node=$(check_storm_node)
@@ -213,47 +209,8 @@ stop_storm_process()
 start_storm_process()
 {
     node=$(check_storm_node)
-    if [ $node -eq 2 ]; then
-        file={STORMHOME}/logs/supervisor.log
-     
-        if [ -f $file ]; then
-            LOG1C=`grep $SLOGEMER1 $file | wc -l`
-            LOG2C=`grep $SLOGEMER2 $file | wc -l`
-            if [ $LOG1C -ne 0 ] || [ $LOG2C -ne 0 ]; then
-                cd ${STORMHOME}/logs
-                #Step 1: Kill all storm process
-                #1.kill the nimbus,supervisor,ui,logviewer
-                stop_storm_process
-
-                #2.kill all the worker process
-                sc=`ps -ef | grep $STORMHOME | grep -v grep | awk '{print $2}' | wc -1`
-                if [ $sc -ne 0]; then
-                    ps -ef | grep $STORMHOME | grep -v grep | awk '{print $2}' | xargs kill
-                fi
-
-                #Step 2: backup the log
-                #mkdir "logbak_$dataNow"
-                #for file1 in $1/*
-                #do
-                #    if [ ! -d $file1 ]; then
-                #        echo "mv $file1 ${file1}"_"${dataNow}"
-                #    fi
-                #done
-                mv *"_"${dataNow} logbak_$dataNow
-            
-                #Stop 3: backup the data
-                #cd ${STORMHOME}/data
-                #mv supervisor supervisor_$dataNow
-                #mv workers workers_$dataNow
-
-                #Step 4: send mail alert
-                #sendmailimmediate "The storm restart by error: \"java.lang.OutOfMemoryError: unable to create new native thread\" or \"stormconf.ser' does not exist\". \nPlease notice!"
-            fi
-        fi
-    fi
 
     if [ $node -eq 1 ]; then
-
         start_storm_service "backtype.storm.daemon.nimbus"
         start_storm_service "backtype.storm.daemon.logviewer"
         start_storm_service "backtype.storm.ui.core"
@@ -261,12 +218,14 @@ start_storm_process()
         start_storm_service "backtype.storm.daemon.supervisor"
         start_storm_service "backtype.storm.daemon.logviewer"
     else
-        show_warn "This script was NOT running on the storm server."
+        show_warn "This script SHOULD be running on the storm server."
     fi
 }
 
 check_storm_status()
-
+{
+    #Parameter $1=nimbus supervisor ui logviewer
+    #arr=("nimbus" "supervisor" "ui" "logviewer")
     arr=("backtype.storm.daemon.nimbus" "backtype.storm.ui.core" "backtype.storm.daemon.logviewer" "backtype.storm.daemon.supervisor")
     node=$(check_storm_node)
     if [ $node -eq 1 ]; then
@@ -285,8 +244,8 @@ check_storm_status()
     done
 }
 
-###############################
-####### daemon ################
+######################
+####### daemon #######
 _start_storm_daemon()
 {
     while true;
@@ -341,7 +300,6 @@ check_daemon_status()
     if [ -f $DAEMONPID ]; then
         pid=`cat $DAEMONPID`
         cc=`ps -eo pid | grep "\\\<$pid\\\>" | grep -v grep |wc -l`
-        #ps -eo pid | grep '\<$pid\>' | grep -v grep
         if [ ${cc} -ne 0 ]; then
             show_info "$BASHFILE is running"
         else
@@ -353,7 +311,7 @@ check_daemon_status()
 }
 
 ###############################
-############# service ###########
+############# Usage #########
 show_usage()
 {
     show_info "Usage: $BASHFILE {start|stop|status|restart|startStorm|stopStorm}."
@@ -409,4 +367,3 @@ case "$1" in
         show_usage
         ;;
 esac
-
