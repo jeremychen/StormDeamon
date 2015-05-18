@@ -6,4 +6,7 @@
 - 	Storm异常退出时，可以调用sendmail自动提醒Storm集群的owner对集群进行日常维护等。
 - 	在Nimbus节点上运行Nimbus相关进程，在Supervisor节点上运行Supervisor进程。
 - 	为方便系统的运维，该脚本既能仅仅单纯启停Storm进程，也能守护Storm进程；该脚本仅仅启停Storm的Nimbus、Supervisor、UI、Log Viewer进程，对已经在运行的Worker进程不做任何限制。
-实现以上功能的脚本见StormDeamon.sh
+
+
+-
+-实现以上功能的脚本见StormDeamon.sh
